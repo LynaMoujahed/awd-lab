@@ -30,8 +30,9 @@ This project covers two labs on the same microservices application:
 | Meeting | Node.js / Express | 8083 | MEETING |
 | Notification | Python / FastAPI | 8084 | NOTIFICATION |
 | Canditature | Spring Boot | 8085 | CANDITATURE |
+| API Gateway | Spring Cloud Gateway Server MVC | 8080 | APIGATEWAY |
 
-**Start order:** MySQL (XAMPP/WAMP), then Eureka, then Candidat, Canditature, Job, Meeting and Notification.
+**Start order:** MySQL (XAMPP/WAMP), then Eureka, then Candidat, Canditature, Job, Meeting, Notification and finally the API Gateway.
 
 ## How to run
 
@@ -279,3 +280,49 @@ Both URLs appear in the registry (`GET /eureka/apps/NOTIFICATION`):
 
 ---
 
+
+
+---
+
+# Part 3: API Gateway
+
+The `apigateway` module (Spring Cloud Gateway Server MVC, Gradle) is the single entry point on `http://localhost:8080`. It registers in Eureka and forwards requests to each microservice.
+
+| Route id | Predicate (Path) | Target |
+|---|---|---|
+| candidature | `/mic3/**` | http://localhost:8085 |
+| candidat | `/mic1/**` | http://localhost:8081 |
+| job | `/api/jobs/**`, `/api/categories/**` | http://localhost:8082 |
+| meeting | `/api/meetings/**` | http://localhost:8083 |
+| notification | `/api/notifications/**` | http://localhost:8084 |
+
+Examples through the gateway:
+
+- `http://localhost:8080/mic1/candidates`
+- `http://localhost:8080/mic3/candidature/hello`
+- `http://localhost:8080/api/jobs`
+- `http://localhost:8080/api/meetings/hello`
+- `http://localhost:8080/api/notifications/hello`
+- Registered routes: `http://localhost:8080/actuator/gateway/routes`
+
+## Static vs dynamic route configuration
+
+The gateway has two Spring profiles, selected by `spring.profiles.active` in `application.properties`.
+
+| Profile | File | URI of a route | Behaviour |
+|---|---|---|---|
+| `static` | `application-static.properties` | `http://localhost:8081` | host and port hard-coded, one instance per service |
+| `dynamic` (default) | `application-dynamic.properties` | `lb://CANDIDAT` | Eureka resolves the instances, round-robin load balancing |
+
+Spring Cloud Gateway Server MVC resolves `lb://SERVICE-ID` through Eureka. The `Path` predicates stay declared in the profile files.
+
+To switch: change `spring.profiles.active=static` or `dynamic`, or run with `--spring.profiles.active=static`.
+
+## Load balancing test (2 instances of canditature)
+
+```powershell
+$env:SERVER_PORT=8095; .\mvnw.cmd spring-boot:run   # 2nd instance, 1st one stays on 8085
+1..10 | ForEach-Object { Invoke-RestMethod http://localhost:8080/mic3/candidature/hello }
+```
+
+Compare with `http://localhost:8085/mic3/candidature/hello` and `http://localhost:8095/mic3/candidature/hello`: same response.
