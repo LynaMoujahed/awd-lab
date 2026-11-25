@@ -1,4 +1,3 @@
-[README (1).md](https://github.com/user-attachments/files/35418141/README.1.md)
 # API Gateway – JobBoard (Spring Cloud Gateway Server MVC)
 
 Mise en place d'une API Gateway qui centralise l'accès aux microservices du projet JobBoard.
@@ -42,6 +41,10 @@ Le mode se choisit avec une seule ligne dans `application.properties`, suivie d'
 spring.profiles.active=static    # ou dynamic
 ```
 
+Profil actif dans `application.properties` (ici : `dynamic`) :
+
+![Profil actif : dynamic](screenshots/profile-dynamic.png)
+
 ## 4. Configuration statique
 
 Chaque route déclare l'adresse (host:port) du service **en dur** dans `application-static.properties` :
@@ -68,6 +71,10 @@ spring.cloud.gateway.server.webmvc.routes[1].id=candidat
 spring.cloud.gateway.server.webmvc.routes[1].uri=lb://CANDIDAT
 spring.cloud.gateway.server.webmvc.routes[1].predicates[0]=Path=/mic1/**
 ```
+
+Fichier `application-dynamic.properties` dans le module `apigateway` :
+
+![application-dynamic.properties](screenshots/dynamic-01-config.png)
 
 La gateway est un client Eureka (`eureka.client.fetch-registry=true`) : elle interroge Eureka pour obtenir les instances disponibles du service, puis répartit les appels en **round-robin**.
 
@@ -113,11 +120,17 @@ $env:SERVER_PORT=8095
 
 L'instance 8085 reste lancée normalement. Dans Eureka, CANDITATURE doit afficher 2 instances.
 
+La 2ème instance répond directement sur le port 8095 :
+
+![2ème instance de canditature sur le port 8095](screenshots/canditature-instance-8095.png)
+
 ## 7. Tests
 
 ### 7.1 Services enregistrés dans Eureka
 
-Dans http://localhost:8761, les 6 services doivent être **UP** : APIGATEWAY, CANDIDAT, CANDITATURE, JOB, MEETING, NOTIFICATION.
+Dans http://localhost:8761, les 6 services doivent être **UP** : APIGATEWAY, CANDIDAT, CANDITATURE, JOB, MEETING, NOTIFICATION. CANDITATURE affiche bien **2 instances** (8085 et 8095).
+
+![Dashboard Eureka : 6 services UP, 2 instances de CANDITATURE](screenshots/eureka-services-2-instances.png)
 
 ### 7.2 Accès via la gateway (port 8080)
 
@@ -130,6 +143,8 @@ curl.exe -s -w "`nHTTP %{http_code}`n" http://localhost:8080/api/notifications/h
 ```
 
 Résultat attendu : `HTTP 200` pour chaque appel.
+
+![Appels des 5 services via la gateway, HTTP 200 partout](screenshots/dynamic-02-appels-gateway.png)
 
 ### 7.3 Comparaison avec et sans gateway
 
@@ -160,6 +175,18 @@ foreach ($p in $paires) {
   Write-Host ("{0,-50} {1}" -f $p[1], $r)
 }
 ```
+
+**Exemple : candidat**
+
+| Sans gateway (port 8081) | Avec gateway (port 8080) |
+|---|---|
+| ![candidat direct](screenshots/comparaison-candidat-direct-8081.png) | ![candidat via la gateway](screenshots/comparaison-candidat-gateway-8080.png) |
+
+**Exemple : meeting et notification**
+
+| meeting en direct (port 8083) | notification via la gateway (port 8080) |
+|---|---|
+| ![meeting direct](screenshots/meeting-direct-8083.png) | ![notification via la gateway](screenshots/notification-gateway-8080.png) |
 
 ### 7.4 Test statique
 
@@ -207,23 +234,17 @@ Arrêter l'instance 8095, attendre 30 à 60 secondes, puis relancer la boucle de
 
 Les captures sont dans le dossier `screenshots/`.
 
-**Configuration**
-- `static-01-config.png` : `application-static.properties`
-- `dynamic-01-config.png` : `application-dynamic.properties`
-- `profile-static.png` / `profile-dynamic.png` : profil actif dans la console de la gateway
-
-**Eureka**
-- `eureka-6-services.png` : les 6 services en UP
-- `eureka-2-instances.png` : 2 instances de CANDITATURE (8085 et 8095)
-
-**Accès via la gateway**
-- `static-02-...` et `dynamic-02-...` : un appel par service via le port 8080
-- `static-comparaison.png` / `dynamic-comparaison.png` : comparaison avec et sans gateway
-
-**Load balancing**
-- `lb-boucle.png` : les 10 requêtes dans le terminal
-- `lb-consoles.png` : répartition dans les consoles 8085 et 8095
-- `lb-panne.png` : réponses avec une seule instance (optionnel)
+| Fichier | Contenu | Section |
+|---|---|---|
+| `profile-dynamic.png` | Profil actif `dynamic` dans `application.properties` | 3 |
+| `dynamic-01-config.png` | `application-dynamic.properties` (routes `lb://`) | 5 |
+| `canditature-instance-8095.png` | 2ème instance de canditature sur le port 8095 | 6 |
+| `eureka-services-2-instances.png` | Eureka : 6 services UP, 2 instances de CANDITATURE | 7.1 |
+| `dynamic-02-appels-gateway.png` | Les 5 services appelés via la gateway (HTTP 200) | 7.2 |
+| `comparaison-candidat-direct-8081.png` | candidat sans gateway | 7.3 |
+| `comparaison-candidat-gateway-8080.png` | candidat avec gateway | 7.3 |
+| `meeting-direct-8083.png` | meeting en direct | 7.3 |
+| `notification-gateway-8080.png` | notification via la gateway | 7.3 |
 
 ## 10. Dépannage
 
